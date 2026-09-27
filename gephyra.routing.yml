@@ -1,0 +1,7 @@
+gephyra.settings:
+  path: '/admin/config/services/gephyra'
+  defaults:
+    _form: '\Drupal\gephyra\Form\GephyraSettingsForm'
+    _title: 'Gephýra - Collegamento ai gestionali'
+  requirements:
+    _permission: 'administer gephyra'

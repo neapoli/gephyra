@@ -1,0 +1,24 @@
+<?php
+
+/**
+ * @file
+ * Gephýra: collegamento del sito ai gestionali della scuola.
+ */
+
+use Drupal\Core\Routing\RouteMatchInterface;
+use Drupal\Core\Url;
+
+/**
+ * Implements hook_help().
+ */
+function gephyra_help($route_name, RouteMatchInterface $route_match) {
+  if ($route_name !== 'help.page.gephyra') {
+    return NULL;
+  }
+  $output = '<h2>' . t('Gephýra') . '</h2>';
+  $output .= '<p>' . t('Gephýra (dal greco «ponte») collega il sito della scuola ai gestionali e registri elettronici della segreteria tramite le API che i fornitori mettono a disposizione secondo il modello di interoperabilità AgID.') . '</p>';
+  $output .= '<p>' . t('Ogni fornitore ha il proprio sottomodulo. Le credenziali (client ID e secret) sono rilasciate dal fornitore alla scuola: si scrivono nel file <em>settings.php</em> del sito, mai nel codice o nella configurazione. Il fornitore si sceglie e il collegamento si prova nella <a href=":url">pagina delle impostazioni</a>, oppure dal terminale con <code>drush gephyra:prova</code>.', [
+    ':url' => Url::fromRoute('gephyra.settings')->toString(),
+  ]) . '</p>';
+  return $output;
+}

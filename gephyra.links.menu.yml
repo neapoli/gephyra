@@ -1,0 +1,5 @@
+gephyra.settings:
+  title: 'Gephýra'
+  description: 'Collegamento del sito ai gestionali e registri elettronici della scuola (Argo, Axios…).'
+  parent: system.admin_config_services
+  route_name: gephyra.settings

@@ -1,0 +1,10 @@
+services:
+  logger.channel.gephyra:
+    parent: logger.channel_base
+    arguments: ['gephyra']
+  plugin.manager.gephyra_fornitore:
+    class: '\Drupal\gephyra\GephyraFornitoreManager'
+    parent: default_plugin_manager
+  gephyra.client:
+    class: '\Drupal\gephyra\GephyraClient'
+    arguments: ['@plugin.manager.gephyra_fornitore', '@config.factory', '@http_client', '@cache.default', '@datetime.time', '@logger.channel.gephyra']

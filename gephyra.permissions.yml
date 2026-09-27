@@ -1,0 +1,4 @@
+administer gephyra:
+  title: 'Amministrare Gephýra'
+  description: 'Scegliere il fornitore e provare il collegamento alle sue API. Le API espongono dati personali di alunni e personale: da dare solo all''amministratore.'
+  restrict access: true
