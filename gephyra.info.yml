@@ -1,0 +1,7 @@
+name: "Gephýra"
+description: "Gephýra, dal greco «ponte», collega il sito della scuola ai gestionali e registri elettronici (Argo, Axios…) tramite le loro API."
+package: "Neapoli"
+version: 1.0.0-dev
+
+type: module
+core_version_requirement: ^10.3 || ^11 || ^12
