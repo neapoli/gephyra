@@ -7,7 +7,7 @@ Gephýra (dal greco «ponte») collega il sito della scuola ai **gestionali e re
 | Modulo | Contiene |
 |---|---|
 | `gephyra` | parte comune: impostazioni, token OAuth2, chiamate alle API, registro degli errori, `drush gephyra:prova` |
-| `gephyra_argo` | fornitore Argo (in preparazione) |
+| `gephyra_argo` | fornitore Argo: API di interoperabilità AgID di Argo Software (token su `auth.portaleargo.it` con scope `agid`, intestazione Basic) |
 
 Ogni fornitore è un plugin `GephyraFornitore` dichiarato dal proprio sottomodulo in `src/Plugin/GephyraFornitore`: sa dove chiedere il token e dove chiamare i servizi. Il resto del sito usa solo il servizio `gephyra.client`, senza sapere quale fornitore c'è dietro.
 

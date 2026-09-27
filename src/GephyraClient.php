@@ -122,7 +122,9 @@ class GephyraClient {
       $form['client_secret'] = $credenziali['client_secret'];
     }
     else {
-      $opzioni['auth'] = [$credenziali['client_id'], $credenziali['client_secret']];
+      // OAuth2 (RFC 6749, 2.3.1) vuole client ID e secret codificati come in
+      // un modulo prima di comporre l'intestazione Basic.
+      $opzioni['auth'] = [urlencode($credenziali['client_id']), urlencode($credenziali['client_secret'])];
     }
     $opzioni['form_params'] = $form;
 
@@ -164,7 +166,9 @@ class GephyraClient {
 
     $opzioni = [
       'timeout' => $this->timeout(),
-      'headers' => ['Accept' => 'application/json'],
+      // Preferisce JSON, ma alcuni servizi (la versione di Argo) rispondono
+      // solo in testo e con un Accept troppo stretto danno 406.
+      'headers' => ['Accept' => 'application/json, text/plain;q=0.9, */*;q=0.8'],
     ];
     if ($metodo === 'GET') {
       if ($dati) {

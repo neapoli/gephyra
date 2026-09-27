@@ -1,0 +1,9 @@
+name: "Gephýra - Argo"
+description: "Collegamento alle API di interoperabilità di Argo Software (portaleargo.it)."
+package: "Neapoli"
+
+type: module
+core_version_requirement: ^10.3 || ^11 || ^12
+configure: gephyra.settings
+dependencies:
+  - gephyra:gephyra
