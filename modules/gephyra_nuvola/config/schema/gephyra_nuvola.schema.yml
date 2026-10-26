@@ -1,0 +1,58 @@
+gephyra_nuvola.settings:
+  type: config_object
+  label: 'Impostazioni di Gephýra - Nuvola'
+  mapping:
+    feed_circolari:
+      type: uri
+      label: 'Indirizzo del feed RSS delle circolari pubbliche'
+    titolari:
+      type: sequence
+      label: 'Voci del titolario da trattare come circolari (vuoto: tutte)'
+      sequence:
+        type: string
+        label: 'Voce del titolario'
+    importazione_attiva:
+      type: boolean
+      label: 'Importa col cron le circolari nuove'
+    importa_dal:
+      type: string
+      label: 'Data (AAAA-MM-GG) da cui importare le circolari'
+    argomento:
+      type: label
+      label: 'Nome del termine «argomenti» delle circolari importate'
+    tipologia:
+      type: label
+      label: 'Nome del termine «tipologia circolare» delle circolari importate'
+    destinatari:
+      type: label
+      label: 'Nome del termine «destinatari» delle circolari importate'
+    autore:
+      type: integer
+      label: 'Id dell''utente autore delle circolari importate'
+    notizie_attive:
+      type: boolean
+      label: 'Importa come notizie le voci che non sono circolari'
+    notizie_spubblica:
+      type: boolean
+      label: 'Spubblica le notizie alla data di archiviazione di Nuvola (Scheduler)'
+    notizie_dal:
+      type: string
+      label: 'Data (AAAA-MM-GG) da cui importare le notizie'
+    notizie_escluse:
+      type: sequence
+      label: 'Voci del titolario da non importare come notizie'
+      sequence:
+        type: string
+        label: 'Voce del titolario'
+    notizie_tipologia:
+      type: label
+      label: 'Nome del termine «tipologia notizie» delle notizie importate'
+    notizie_argomento:
+      type: label
+      label: 'Nome del termine «argomenti» delle notizie importate'
+    notizie_testo:
+      type: text
+      label: 'Testo delle notizie importate'
+    notizie_autore:
+      type: integer
+      label: 'Id dell''utente autore delle notizie importate'

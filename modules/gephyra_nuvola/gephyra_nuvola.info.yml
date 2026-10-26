@@ -1,0 +1,9 @@
+name: "Gephýra - Nuvola"
+description: "Collegamento a Nuvola di Madisoft: feed RSS delle circolari pubbliche e, con il token rilasciato alla scuola, le API."
+package: "Neapoli"
+
+type: module
+core_version_requirement: ^10.3 || ^11 || ^12
+configure: gephyra.settings
+dependencies:
+  - gephyra:gephyra

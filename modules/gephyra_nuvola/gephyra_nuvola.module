@@ -1,0 +1,223 @@
+<?php
+
+/**
+ * @file
+ * Gephýra - Nuvola: feed delle circolari e loro importazione.
+ */
+
+use Drupal\Core\Form\FormStateInterface;
+use Drupal\gephyra\Exception\GephyraException;
+use Drupal\gephyra_nuvola\FeedCircolari;
+use Drupal\gephyra_nuvola\ImportaCircolari;
+use Drupal\user\Entity\User;
+
+/**
+ * Implements hook_cron().
+ *
+ * Importa circolari e notizie nuove, secondo quello che è attivo.
+ */
+function gephyra_nuvola_cron() {
+  $config = \Drupal::config('gephyra_nuvola.settings');
+  if (!($config->get('importazione_attiva') || $config->get('notizie_attive')) || !$config->get('feed_circolari')) {
+    return;
+  }
+  try {
+    \Drupal::service('gephyra_nuvola.importa_circolari')->importa();
+  }
+  catch (GephyraException $e) {
+    \Drupal::logger('gephyra_nuvola')->error('Importazione da Nuvola non riuscita: @errore', ['@errore' => $e->getMessage()]);
+  }
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter() for gephyra_settings_form.
+ *
+ * Aggiunge alla pagina di Gephýra l'indirizzo del feed, le voci del titolario
+ * delle circolari e le impostazioni dell'importazione di circolari e notizie.
+ */
+function gephyra_nuvola_form_gephyra_settings_form_alter(array &$form, FormStateInterface $form_state) {
+  $config = \Drupal::config('gephyra_nuvola.settings');
+
+  $form['nuvola'] = [
+    '#type' => 'details',
+    '#title' => t('Nuvola'),
+    '#open' => TRUE,
+    '#weight' => 5,
+  ];
+  $form['nuvola']['feed_circolari'] = [
+    '#type' => 'url',
+    '#title' => t('Feed RSS delle circolari pubbliche'),
+    '#description' => t('Indirizzo del feed della bacheca delle circolari su Nuvola, ad esempio <code>https://nuvola.madisoft.it/feed/LCIS01200Q/rss/2</code>: contiene il codice meccanografico della scuola e il numero della bacheca, che cambia da scuola a scuola. Si trova nella pagina pubblica della bacheca. Il feed è pubblico e non richiede credenziali. Salvare prima di provare il collegamento.'),
+    '#default_value' => $config->get('feed_circolari') ?: '',
+    '#maxlength' => 255,
+  ];
+  $form['nuvola']['titolari'] = [
+    '#type' => 'textarea',
+    '#title' => t('Voci del titolario delle circolari'),
+    '#description' => t('Nella bacheca, insieme alle circolari, Nuvola pubblica anche avvisi e bandi: si riconoscono dalla voce del titolario. Una voce per riga, scritta come in Nuvola (ad esempio <em>UNICO</em>). Se vuoto, tutte le voci del feed sono considerate circolari.'),
+    '#default_value' => implode("\n", (array) $config->get('titolari')),
+    '#rows' => 3,
+  ];
+
+  $form['nuvola']['importazione'] = [
+    '#type' => 'fieldset',
+    '#title' => t('Importazione delle circolari'),
+  ];
+  $form['nuvola']['importazione']['importazione_attiva'] = [
+    '#type' => 'checkbox',
+    '#title' => t('Importa col cron le circolari nuove'),
+    '#description' => t('Le circolari del feed vengono create sul sito già pubblicate e promosse in prima pagina, con il PDF di Nuvola fra gli allegati e il numero preso dalla bacheca. Da terminale: <code>drush gephyra-nuvola:importa --prova</code> mostra cosa verrebbe importato senza salvare nulla.'),
+    '#default_value' => (bool) $config->get('importazione_attiva'),
+  ];
+  $form['nuvola']['importazione']['importa_dal'] = [
+    '#type' => 'date',
+    '#title' => t('Importa le circolari pubblicate dal'),
+    '#description' => t('Le circolari precedenti non vengono importate: di solito sono già sul sito. Le circolari già presenti con lo stesso numero e anno scolastico vengono comunque saltate.'),
+    '#default_value' => $config->get('importa_dal') ?: '',
+  ];
+  foreach ([
+    'argomento' => [t('Argomento'), 'argomenti'],
+    'tipologia' => [t('Tipologia di circolare'), 'tipologia_circolare'],
+    'destinatari' => [t('Destinatari'), 'destinatari'],
+  ] as $chiave => [$titolo, $vocabolario]) {
+    $form['nuvola']['importazione'][$chiave] = [
+      '#type' => 'textfield',
+      '#title' => $titolo,
+      '#description' => t('Nome del termine del vocabolario «@vocabolario», scritto come sul sito.', ['@vocabolario' => $vocabolario]),
+      '#default_value' => $config->get($chiave) ?: '',
+      '#size' => 40,
+    ];
+  }
+  $form['nuvola']['importazione']['autore'] = [
+    '#type' => 'entity_autocomplete',
+    '#title' => t('Autore'),
+    '#description' => t('Utente a cui risultano le circolari importate.'),
+    '#target_type' => 'user',
+    '#default_value' => User::load((int) ($config->get('autore') ?: 1)),
+  ];
+
+  $form['nuvola']['notizie'] = [
+    '#type' => 'fieldset',
+    '#title' => t('Importazione delle notizie'),
+  ];
+  $form['nuvola']['notizie']['notizie_attive'] = [
+    '#type' => 'checkbox',
+    '#title' => t('Importa come notizie le voci che non sono circolari'),
+    '#description' => t('Le voci della bacheca con un titolario diverso da quelli delle circolari (avvisi, bandi, atti) vengono create come notizie già pubblicate e promosse in prima pagina, con i file di Nuvola in un paragrafo «Allegati».'),
+    '#default_value' => (bool) $config->get('notizie_attive'),
+  ];
+  $form['nuvola']['notizie']['notizie_spubblica'] = [
+    '#type' => 'checkbox',
+    '#title' => t('Togli la pubblicazione alla data di archiviazione di Nuvola'),
+    '#description' => t('La data diventa la spubblicazione programmata della notizia (modulo Scheduler, che deve essere abilitato a spubblicare le notizie): si vede e si può cambiare o togliere nel contenuto. La notizia non viene cancellata.'),
+    '#default_value' => (bool) $config->get('notizie_spubblica'),
+  ];
+  $form['nuvola']['notizie']['notizie_dal'] = [
+    '#type' => 'date',
+    '#title' => t('Importa le notizie pubblicate dal'),
+    '#default_value' => $config->get('notizie_dal') ?: '',
+  ];
+  $form['nuvola']['notizie']['notizie_escluse'] = [
+    '#type' => 'textarea',
+    '#title' => t('Voci del titolario da non importare'),
+    '#description' => t('Una voce per riga, scritta come in Nuvola (ad esempio <em>VII - PERSONALE</em>). Se vuoto, si importano tutte le voci che non sono circolari.'),
+    '#default_value' => implode("\n", (array) $config->get('notizie_escluse')),
+    '#rows' => 3,
+  ];
+  $form['nuvola']['notizie']['notizie_tipologia'] = [
+    '#type' => 'textfield',
+    '#title' => t('Tipologia di notizia'),
+    '#description' => t('Nome del termine del vocabolario «@vocabolario», scritto come sul sito.', ['@vocabolario' => 'tipologia_notizie']),
+    '#default_value' => $config->get('notizie_tipologia') ?: '',
+    '#size' => 40,
+  ];
+  $form['nuvola']['notizie']['notizie_argomento'] = [
+    '#type' => 'textfield',
+    '#title' => t('Argomento'),
+    '#description' => t('Nome del termine del vocabolario «@vocabolario», scritto come sul sito.', ['@vocabolario' => 'argomenti']),
+    '#default_value' => $config->get('notizie_argomento') ?: '',
+    '#size' => 40,
+  ];
+  $form['nuvola']['notizie']['notizie_testo'] = [
+    '#type' => 'textarea',
+    '#title' => t('Testo della notizia'),
+    '#description' => t('Il testo è obbligatorio e Nuvola non lo fornisce: questo vale per tutte le notizie importate.'),
+    '#default_value' => $config->get('notizie_testo') ?: '',
+    '#rows' => 2,
+  ];
+  $form['nuvola']['notizie']['notizie_autore'] = [
+    '#type' => 'entity_autocomplete',
+    '#title' => t('Autore'),
+    '#description' => t('Utente a cui risultano le notizie importate.'),
+    '#target_type' => 'user',
+    '#default_value' => User::load((int) ($config->get('notizie_autore') ?: 1)),
+  ];
+
+  $form['#validate'][] = 'gephyra_nuvola_settings_form_validate';
+  $form['#submit'][] = 'gephyra_nuvola_settings_form_submit';
+}
+
+/**
+ * Controlla l'indirizzo del feed e i dati delle importazioni attive.
+ */
+function gephyra_nuvola_settings_form_validate(array &$form, FormStateInterface $form_state) {
+  $indirizzo = trim((string) $form_state->getValue('feed_circolari'));
+  if ($indirizzo !== '' && FeedCircolari::parti($indirizzo) === NULL) {
+    $form_state->setErrorByName('feed_circolari', t("L'indirizzo deve essere del tipo https://nuvola.madisoft.it/feed/CODICE/rss/NUMERO."));
+  }
+
+  // Con un'importazione attiva servono tutti i suoi dati, e i termini devono
+  // esistere: altrimenti il cron fallirebbe a ogni giro.
+  $importa = \Drupal::service('gephyra_nuvola.importa_circolari');
+  foreach ([
+    'circolare' => ['importazione_attiva', 'importa_dal', 'autore', t('le circolari')],
+    'notizia' => ['notizie_attive', 'notizie_dal', 'notizie_autore', t('le notizie')],
+  ] as $tipo => [$attiva, $dal, $autore, $nome_tipo]) {
+    if (!$form_state->getValue($attiva)) {
+      continue;
+    }
+    if ($indirizzo === '') {
+      $form_state->setErrorByName('feed_circolari', t("Per importare @tipo serve l'indirizzo del feed.", ['@tipo' => $nome_tipo]));
+    }
+    if (!$form_state->getValue($dal)) {
+      $form_state->setErrorByName($dal, t('Indicare la data da cui importare @tipo.', ['@tipo' => $nome_tipo]));
+    }
+    foreach (ImportaCircolari::TERMINI[$tipo] as [$vocabolario, $impostazione]) {
+      $nome = (string) $form_state->getValue($impostazione);
+      if ($importa->termine($vocabolario, $nome) === NULL) {
+        $form_state->setErrorByName($impostazione, t('Nel vocabolario «@vocabolario» non c\'è il termine «@nome».', ['@vocabolario' => $vocabolario, '@nome' => $nome]));
+      }
+    }
+    if (!$form_state->getValue($autore)) {
+      $form_state->setErrorByName($autore, t("Indicare l'autore per @tipo.", ['@tipo' => $nome_tipo]));
+    }
+  }
+  if ($form_state->getValue('notizie_attive') && trim((string) $form_state->getValue('notizie_testo')) === '') {
+    $form_state->setErrorByName('notizie_testo', t('Il testo della notizia è obbligatorio.'));
+  }
+}
+
+/**
+ * Salva le impostazioni di Nuvola.
+ */
+function gephyra_nuvola_settings_form_submit(array &$form, FormStateInterface $form_state) {
+  $righe = fn($chiave) => array_values(array_unique(array_filter(array_map('trim', preg_split('/\R/', (string) $form_state->getValue($chiave))))));
+  \Drupal::configFactory()->getEditable('gephyra_nuvola.settings')
+    ->set('feed_circolari', trim((string) $form_state->getValue('feed_circolari')))
+    ->set('titolari', $righe('titolari'))
+    ->set('importazione_attiva', (bool) $form_state->getValue('importazione_attiva'))
+    ->set('importa_dal', (string) $form_state->getValue('importa_dal'))
+    ->set('argomento', trim((string) $form_state->getValue('argomento')))
+    ->set('tipologia', trim((string) $form_state->getValue('tipologia')))
+    ->set('destinatari', trim((string) $form_state->getValue('destinatari')))
+    ->set('autore', (int) $form_state->getValue('autore') ?: 1)
+    ->set('notizie_attive', (bool) $form_state->getValue('notizie_attive'))
+    ->set('notizie_spubblica', (bool) $form_state->getValue('notizie_spubblica'))
+    ->set('notizie_dal', (string) $form_state->getValue('notizie_dal'))
+    ->set('notizie_escluse', $righe('notizie_escluse'))
+    ->set('notizie_tipologia', trim((string) $form_state->getValue('notizie_tipologia')))
+    ->set('notizie_argomento', trim((string) $form_state->getValue('notizie_argomento')))
+    ->set('notizie_testo', trim((string) $form_state->getValue('notizie_testo')))
+    ->set('notizie_autore', (int) $form_state->getValue('notizie_autore') ?: 1)
+    ->save();
+}

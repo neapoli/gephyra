@@ -1,0 +1,10 @@
+services:
+  logger.channel.gephyra_nuvola:
+    parent: logger.channel_base
+    arguments: ['gephyra_nuvola']
+  gephyra_nuvola.feed_circolari:
+    class: '\Drupal\gephyra_nuvola\FeedCircolari'
+    arguments: ['@gephyra.client', '@config.factory']
+  gephyra_nuvola.importa_circolari:
+    class: '\Drupal\gephyra_nuvola\ImportaCircolari'
+    arguments: ['@gephyra_nuvola.feed_circolari', '@gephyra.client', '@entity_type.manager', '@file.repository', '@file_system', '@keyvalue', '@config.factory', '@logger.channel.gephyra_nuvola']

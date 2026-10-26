@@ -1,0 +1,40 @@
+<?php
+
+/**
+ * @file
+ * Aggiornamenti di Gephýra - Nuvola.
+ */
+
+/**
+ * Impostazioni dell'importazione delle notizie (spenta).
+ */
+function gephyra_nuvola_update_10001() {
+  $config = \Drupal::configFactory()->getEditable('gephyra_nuvola.settings');
+  $predefinite = [
+    'notizie_attive' => FALSE,
+    'notizie_dal' => '2026-09-01',
+    'notizie_escluse' => [],
+    'notizie_tipologia' => 'Le notizie',
+    'notizie_argomento' => 'Notizie',
+    'notizie_testo' => 'In allegato il documento pubblicato sulla bacheca della scuola.',
+    'notizie_autore' => 1,
+  ];
+  foreach ($predefinite as $chiave => $valore) {
+    if ($config->get($chiave) === NULL) {
+      $config->set($chiave, $valore);
+    }
+  }
+  $config->save();
+  return t('Aggiunte le impostazioni delle notizie da Nuvola (importazione spenta).');
+}
+
+/**
+ * Spubblicazione delle notizie alla data di archiviazione di Nuvola.
+ */
+function gephyra_nuvola_update_10002() {
+  $config = \Drupal::configFactory()->getEditable('gephyra_nuvola.settings');
+  if ($config->get('notizie_spubblica') === NULL) {
+    $config->set('notizie_spubblica', TRUE)->save();
+  }
+  return t('Le notizie importate da Nuvola si spubblicano alla data di archiviazione (con Scheduler).');
+}

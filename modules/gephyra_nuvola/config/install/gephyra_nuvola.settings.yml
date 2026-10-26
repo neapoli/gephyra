@@ -1,0 +1,17 @@
+feed_circolari: ''
+titolari:
+  - UNICO
+importazione_attiva: false
+importa_dal: '2026-09-01'
+argomento: 'Circolari'
+tipologia: 'Senza richiesta di presa visione'
+destinatari: 'Tutta la popolazione'
+autore: 1
+notizie_attive: false
+notizie_spubblica: true
+notizie_dal: '2026-09-01'
+notizie_escluse: []
+notizie_tipologia: 'Le notizie'
+notizie_argomento: 'Notizie'
+notizie_testo: 'In allegato il documento pubblicato sulla bacheca della scuola.'
+notizie_autore: 1
