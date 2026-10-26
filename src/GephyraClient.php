@@ -17,11 +17,15 @@ use Psr\Log\LoggerInterface;
 /**
  * Chiamate alle API del fornitore: token OAuth2, richieste, errori.
  *
- * Le credenziali stanno solo in settings.php:
+ * Le credenziali stanno solo in settings.php, nella forma che il fornitore
+ * chiede (client ID e secret per OAuth2, oppure un token fisso):
  * @code
  * $settings['gephyra']['argo'] = [
  *   'client_id' => '…',
  *   'client_secret' => '…',
+ * ];
+ * $settings['gephyra']['nuvola'] = [
+ *   'token' => '…',
  * ];
  * @endcode
  * Nel registro vanno solo fornitore, operazione e codice HTTP: mai
@@ -82,10 +86,11 @@ class GephyraClient {
   }
 
   /**
-   * Dice se in settings.php ci sono client ID e secret del fornitore.
+   * Dice se in settings.php ci sono le credenziali del fornitore.
    */
   public function haCredenziali(string $id): bool {
-    return $this->credenziali($id) !== NULL;
+    return $this->fornitoreManager->hasDefinition($id)
+      && $this->credenziali($this->fornitoreManager->createInstance($id)) !== NULL;
   }
 
   /**
@@ -100,9 +105,13 @@ class GephyraClient {
    */
   public function token(GephyraFornitoreInterface $fornitore, bool $rinnova = FALSE): string {
     $id = $fornitore->getPluginId();
-    $credenziali = $this->credenziali($id);
+    $credenziali = $this->credenziali($fornitore);
     if ($credenziali === NULL) {
       throw new GephyraException((string) $this->t('Mancano le credenziali di @fornitore in settings.php.', ['@fornitore' => $fornitore->label()]));
+    }
+    // Il token fisso si usa così com'è: non c'è niente da chiedere.
+    if ($fornitore->tipoCredenziali() === 'token') {
+      return $credenziali['token'];
     }
 
     // L'impronta delle credenziali nella chiave fa sì che, cambiandole in
@@ -179,10 +188,12 @@ class GephyraClient {
       $opzioni['json'] = $dati ?: new \stdClass();
     }
 
-    // Con un token scaduto prima del previsto il fornitore risponde 401: in
-    // quel caso si chiede un token nuovo e si riprova una volta sola.
-    foreach ([FALSE, TRUE] as $rinnova) {
-      $opzioni['headers']['Authorization'] = 'Bearer ' . $this->token($fornitore, $rinnova);
+    // Con un token OAuth2 scaduto prima del previsto il fornitore risponde
+    // 401: in quel caso si chiede un token nuovo e si riprova una volta sola.
+    // Un token fisso non si rinnova, quindi il 401 è subito un errore.
+    $tentativi = $fornitore->tipoCredenziali() === 'oauth2' ? [FALSE, TRUE] : [TRUE];
+    foreach ($tentativi as $rinnova) {
+      $opzioni['headers'] = $fornitore->intestazioniToken($this->token($fornitore, $rinnova)) + $opzioni['headers'];
       $risposta = $this->invia($fornitore, $metodo, $url, $opzioni, $percorso, $rinnova ? [] : [401]);
       if ($risposta->getStatusCode() !== 401) {
         break;
@@ -195,7 +206,33 @@ class GephyraClient {
   }
 
   /**
+   * Legge un indirizzo pubblico del fornitore, senza credenziali.
+   *
+   * Per i servizi aperti a tutti, come il feed RSS delle circolari di
+   * Nuvola. Il contenuto non finisce nel registro.
+   *
+   * @param string $url
+   *   L'indirizzo completo.
+   * @param string $operazione
+   *   Cosa si sta leggendo, per il registro e il messaggio.
+   * @param string|null $id
+   *   Id del fornitore; NULL per quello attivo.
+   *
+   * @return string
+   *   Il corpo della risposta.
+   *
+   * @throws \Drupal\gephyra\Exception\GephyraException
+   */
+  public function pubblico(string $url, string $operazione, ?string $id = NULL): string {
+    $fornitore = $this->fornitore($id);
+    $risposta = $this->invia($fornitore, 'GET', $url, ['timeout' => $this->timeout()], $operazione);
+    return (string) $risposta->getBody();
+  }
+
+  /**
    * Prova il collegamento: token, poi la chiamata di prova del fornitore.
+   *
+   * Se le credenziali sono facoltative e mancano, si fa solo la prova.
    *
    * @param string|null $id
    *   Id del fornitore; NULL per quello attivo.
@@ -207,18 +244,25 @@ class GephyraClient {
    */
   public function prova(?string $id = NULL): string {
     $fornitore = $this->fornitore($id);
-    $this->token($fornitore, TRUE);
+    if ($fornitore->credenzialiObbligatorie() || $this->credenziali($fornitore) !== NULL) {
+      $this->token($fornitore, TRUE);
+    }
     return $fornitore->prova($this);
   }
 
   /**
-   * Client ID e secret del fornitore da settings.php, o NULL se mancano.
+   * Le credenziali del fornitore da settings.php, o NULL se mancano.
    *
-   * @return array{client_id: string, client_secret: string}|null
-   *   Le credenziali.
+   * @return array{client_id: string, client_secret: string}|array{token: string}|null
+   *   Client ID e secret per OAuth2, il token per i fornitori a token fisso.
    */
-  protected function credenziali(string $id): ?array {
+  protected function credenziali(GephyraFornitoreInterface $fornitore): ?array {
     $tutte = Settings::get('gephyra', []);
+    $id = $fornitore->getPluginId();
+    if ($fornitore->tipoCredenziali() === 'token') {
+      $token = $tutte[$id]['token'] ?? '';
+      return is_string($token) && $token !== '' ? ['token' => $token] : NULL;
+    }
     $client_id = $tutte[$id]['client_id'] ?? '';
     $client_secret = $tutte[$id]['client_secret'] ?? '';
     if (!is_string($client_id) || !is_string($client_secret) || $client_id === '' || $client_secret === '') {

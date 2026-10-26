@@ -98,23 +98,34 @@ class GephyraSettingsForm extends ConfigFormBase {
     ];
     $righe = [];
     foreach ($opzioni as $id => $etichetta) {
+      $fornitore = $this->fornitoreManager->createInstance($id);
+      if ($this->client->haCredenziali($id)) {
+        $stato = $this->t('presenti');
+      }
+      else {
+        $stato = $fornitore->credenzialiObbligatorie() ? $this->t('mancanti') : $this->t('mancanti (facoltative: servono solo per le API)');
+      }
       $righe[] = [
         $etichetta,
-        $this->client->haCredenziali($id) ? $this->t('presenti') : $this->t('mancanti'),
+        $fornitore->tipoCredenziali() === 'token' ? $this->t('token') : $this->t('client ID e secret'),
+        $stato,
       ];
     }
     $form['credenziali']['stato'] = [
       '#type' => 'table',
-      '#header' => [$this->t('Fornitore'), $this->t('Credenziali in settings.php')],
+      '#header' => [$this->t('Fornitore'), $this->t('Tipo'), $this->t('Credenziali in settings.php')],
       '#rows' => $righe,
       '#empty' => $this->t('Nessun fornitore disponibile.'),
     ];
     $form['credenziali']['spiegazione'] = [
       '#type' => 'item',
-      '#markup' => $this->t('Client ID e secret sono rilasciati dal fornitore alla scuola e danno accesso ai dati personali di alunni e personale: non si inseriscono da questa pagina ma nel file <em>settings.php</em> del sito, che non va mai in Git:') .
+      '#markup' => $this->t('Le credenziali (client ID e secret, oppure un token) sono rilasciate dal fornitore alla scuola e danno accesso ai dati personali di alunni e personale: non si inseriscono da questa pagina ma nel file <em>settings.php</em> del sito, che non va mai in Git:') .
       '<pre>$settings[\'gephyra\'][\'argo\'] = [
   \'client_id\' =&gt; \'…\',
   \'client_secret\' =&gt; \'…\',
+];
+$settings[\'gephyra\'][\'nuvola\'] = [
+  \'token\' =&gt; \'…\',
 ];</pre>',
     ];
 

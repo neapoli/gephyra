@@ -19,6 +19,34 @@ abstract class GephyraFornitoreBase extends PluginBase implements GephyraFornito
   /**
    * {@inheritdoc}
    */
+  public function tipoCredenziali(): string {
+    return 'oauth2';
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function credenzialiObbligatorie(): bool {
+    return TRUE;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function intestazioniToken(string $token): array {
+    return ['Authorization' => 'Bearer ' . $token];
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function tokenUrl(): string {
+    return '';
+  }
+
+  /**
+   * {@inheritdoc}
+   */
   public function scope(): string {
     return '';
   }
@@ -36,7 +64,9 @@ abstract class GephyraFornitoreBase extends PluginBase implements GephyraFornito
    * Se il fornitore non ha una chiamata di prova, basta aver ottenuto il token.
    */
   public function prova(GephyraClient $client): string {
-    return (string) $this->t('Token ottenuto.');
+    return $this->tipoCredenziali() === 'token'
+      ? (string) $this->t('Token presente.')
+      : (string) $this->t('Token ottenuto.');
   }
 
 }
